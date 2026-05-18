@@ -146,6 +146,6 @@ The application will be available at `http://localhost:5173`.
 ---
 
 <div align="center">
-  <p>Built with ❤️ by Thanmay Dambekodi & Team</p>
+  <p>Built with ❤️ by Thanmay Dambekodi</p>
   <p><i>Internal Hackathon Project — 2026</i></p>
 </div>
