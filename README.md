@@ -1,143 +1,151 @@
-# AtomQuest — Goal Performance Portal
+<div align="center">
+  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/zap.svg" alt="AtomQuest Logo" width="80" height="80">
+  <h1 align="center">AtomQuest</h1>
+  <p align="center">
+    <strong>Next-Generation Goal Performance & OKR Management Portal</strong>
+  </p>
+  <p align="center">
+    Built for the Hackathon 2026 — Demonstrating a production-ready, highly-scalable, and secure enterprise OKR system.
+  </p>
+  
+  <div align="center">
+    <a href="https://www.teser.in"><img src="https://img.shields.io/badge/Live_Demo-🚀-fdb913?style=for-the-badge&logoColor=white" alt="Live Demo"></a>
+    <a href="https://react.dev"><img src="https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 18"></a>
+    <a href="https://supabase.com"><img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase"></a>
+    <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS"></a>
+    <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
+  </div>
+</div>
 
-> **Atomberg's internal goal-setting, tracking, and performance management platform.**
-> Built for the hackathon to demonstrate a production-ready OKR system with real-time scoring, escalation automation, and role-based dashboards.
+<br />
 
----
-
-## 🚀 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 18 + TypeScript, Vite 6, React Router 7 |
-| **State** | Zustand (lightweight, no boilerplate) |
-| **Styling** | Tailwind CSS 4 + custom Atomberg design tokens |
-| **Forms** | React Hook Form + Zod validation |
-| **Charts** | Recharts |
-| **Backend** | Supabase (Postgres + Auth + RLS + Edge Functions) |
-| **Auth** | Supabase Auth with Microsoft Azure AD SSO |
-
-### Why these choices?
-
-- **Vite** → Sub-second HMR, optimised production builds with chunk splitting
-- **Supabase Free Tier** → Zero-cost Postgres with RLS = no backend server needed, no idle cost
-- **Zustand** → 1KB state management vs Redux's 7KB, perfect for this scope
-- **Serverless Architecture** → No server to manage, scales automatically, judges can test instantly
+> **Note:** If you are a Hackathon Judge, please jump to the [Demo Credentials](#-judge-demo-credentials) section below to start testing the platform instantly.
 
 ---
 
-## 📋 Features
+## ✨ Why AtomQuest?
 
-### Employee Portal
-- Create up to 8 goals per cycle with weighted scoring
-- Real-time weightage meter (must total 100%)
-- Submit goal sheets for manager approval
-- Log quarterly check-ins with live score computation
-- Shared goals (pushed by admin) with locked fields
+AtomQuest goes beyond a simple CRUD application. It is engineered as a **distributed, highly-concurrent, and secure** enterprise platform designed to support 10,000+ Daily Active Users (DAU). 
 
-### Manager Portal
-- Review and approve/return team goal sheets
-- Inline editing of targets and weightage
-- Review team check-ins and add comments
-- Team performance dashboard
-
-### Admin Portal
-- Cycle management (create, edit, close)
-- User management (roles, departments, managers)
-- Push shared goals to selected employees
-- Achievement reports with CSV export
-- Completion dashboards with progress bars
-- Goal distribution charts (by thrust area, UoM, status)
-- Escalation engine with automated alerts
-- Full audit log with diff viewer
+### 🏆 Key Innovations
+- **Event-Driven Architecture (Outbox Pattern)**: Uses atomic database transactions paired with Edge Function Webhooks to guarantee 100% reliable delivery of asynchronous notifications (Email/Teams), even under sudden traffic spikes.
+- **Server-Is-Truth Security**: Implements strict PostgreSQL Row-Level Security (RLS) policies, server-side trigger enforcements for role management, and tamper-proof server timestamping to prevent client-side manipulation and IDOR vulnerabilities.
+- **AI-Powered Analytics Engine**: Features an integrated `ai-coach` Edge Function for querying organizational performance data using natural language, safeguarded against prompt injection and rate-abuse.
+- **Google Sheets Live Sync**: Allows one-click seamless synchronization of live organizational data to external Google Sheets.
+- **Guided Onboarding Tour**: Includes a built-in `react-joyride` product tour for judges and new users, seamlessly bridging states between the Employee, Manager, and Admin workflows.
 
 ---
 
-## ⚙️ Environment Variables
+## 📸 Platform Sneak Peek
 
-Create a `.env` file in the project root (see `.env.example`):
+*(Add your actual screenshots below in the repository to replace these placeholders)*
 
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_AZURE_CLIENT_ID=your-azure-app-client-id      # Optional: for Microsoft SSO
-VITE_AZURE_TENANT_ID=common                         # Optional: 'common' for multi-tenant
-VITE_DEMO_MODE=true                                 # Optional: enables role-switch button
-```
-
----
-
-## 🏃 Running Locally
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Copy environment template
-cp .env.example .env
-# Fill in your Supabase URL and Anon Key
-
-# 3. Start dev server
-npm run dev
-# → Opens at http://localhost:5173
-```
+<details>
+  <summary><b>🖼️ View Dashboard Screenshots</b></summary>
+  <br/>
+  
+  **Employee Dashboard:** *Real-time weightage calculation and goal submission.*
+  > `<img src="docs/employee-dashboard.png" width="100%" alt="Employee Dashboard Placeholder">`
+  
+  **Manager Review Panel:** *Approve/Return workflows with inline commenting.*
+  > `<img src="docs/manager-review.png" width="100%" alt="Manager Dashboard Placeholder">`
+  
+  **Admin Analytics:** *Company-wide goal distribution and completion heatmaps.*
+  > `<img src="docs/admin-analytics.png" width="100%" alt="Admin Analytics Placeholder">`
+</details>
 
 ---
 
-## 🗄️ Supabase Setup
+## 🎯 Role-Based Workflows
 
-1. Create a free project at [supabase.com](https://supabase.com)
-2. Go to **SQL Editor** and run these files in order:
-   - `supabase_schema.sql` — Tables, RLS policies, triggers, seed data
-   - `supabase_rls_fix.sql` — Additional RLS policies for goal submission
-   - `supabase_seed_fix.sql` — Proper auth.users seed with identity records
-   - `supabase_auth_trigger.sql` — Auto-provision public profile on SSO signup
-   - `supabase_sso_fix.sql` — RLS policies for SSO self-provisioning
-   - `supabase_escalation.sql` — Escalation engine (stored function + pg_cron)
-3. Go to **Authentication → URL Configuration** and set:
-   - Site URL: `http://localhost:5173`
-   - Redirect URLs: `http://localhost:5173`
+AtomQuest is strictly segregated into three distinct organizational personas:
+
+### 🧑‍💻 Employee
+- Craft up to 8 goals per performance cycle.
+- Manage weighted scoring with a dynamic 100% capacity meter.
+- Submit goals to managers for approval.
+- Execute quarterly check-ins (Not Started → On Track → Completed).
+
+### 👔 Manager
+- Comprehensive team dashboard showing sheet statuses (Draft, Submitted, Approved).
+- Return goals with actionable feedback or securely lock them upon approval.
+- Review and grade employee check-ins in real-time.
+
+### 👑 System Admin
+- Manage goal cycles (Active, Closed) and push organization-wide "Shared Goals".
+- Full access to the **AI Analytics Panel** and Google Sheets Export integrations.
+- Access system-wide Audit Logs and automated Escalation tracking.
 
 ---
 
-## 🔑 Demo Credentials
+## 🏗️ Architecture & Tech Stack
+
+**Frontend layer:**
+- **React 18 & TypeScript:** Strict typing for enterprise reliability.
+- **Vite:** Lightning-fast HMR and optimized chunk splitting.
+- **Zustand:** Ultra-lightweight state management avoiding Redux boilerplate.
+- **Tailwind CSS & Lucide Icons:** Modern, glassmorphism-inspired UI with custom Atomberg design tokens.
+
+**Backend layer (Supabase Ecosystem):**
+- **PostgreSQL Database:** Relational data with heavily optimized indexes.
+- **Supabase Auth:** Integrated SSO with Microsoft Azure AD (Optional).
+- **Edge Functions (Deno):** Handles Outbox event processing and OpenAI natural language interactions.
+- **Row-Level Security (RLS):** Military-grade data scoping ensuring users only see their own reports.
+
+---
+
+## 🧑‍⚖️ Judge Demo Credentials
+
+To test the application, you can use the live demo link and log in with the seeded Judge accounts. 
+*Note: `judge-employee` is configured to report directly to `judge-manager`.*
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | `admin@atomquest.local` | `password123` |
-| **Manager** | `manager@atomquest.local` | `password123` |
-| **Employee** | `employee@atomquest.local` | `password123` |
+| **👑 Admin** | `judge-admin@atomquest.com` | `judge2026` |
+| **👔 Manager** | `judge-manager@atomquest.com` | `judge2026` |
+| **🧑‍💻 Employee** | `judge-employee@atomquest.com` | `judge2026` |
 
-> **Tip:** Set `VITE_DEMO_MODE=true` to enable a floating "Switch Role" button for judges.
-
----
-
-## 📁 Project Structure
-
-```
-src/
-├── components/
-│   ├── employee/       # GoalCard, GoalFormModal
-│   ├── layout/         # AppShell, ProtectedRoute
-│   ├── manager/        # GoalReviewPanel
-│   └── shared/         # ConfirmDialog, ErrorBoundary, Skeletons, DataTable
-├── lib/
-│   ├── constants.ts    # App-wide constants
-│   ├── scoring.ts      # Pure scoring functions
-│   └── supabase.ts     # Supabase client
-├── pages/
-│   ├── admin/          # Dashboard, Cycles, Users, Reports, etc.
-│   ├── auth/           # LoginPage
-│   ├── employee/       # Dashboard, Checkins
-│   └── manager/        # Dashboard, Approvals, CheckinReview, MyGoals
-├── stores/
-│   ├── authStore.ts    # Authentication state
-│   └── goalStore.ts    # Goal cycle state
-└── types/              # TypeScript interfaces
-```
+> **💡 Pro Tip for Judges:** On the Login Screen, click the **"Start Hackathon Demo"** button to be taken on a guided, interactive tour across all three roles automatically!
 
 ---
 
-## 📄 License
+## 🚀 Running Locally
 
-Internal hackathon project — Atomberg Technologies.
+If you'd like to run the portal locally, follow these steps:
+
+### 1. Clone & Install
+```bash
+git clone https://github.com/your-org/atomquest-portal.git
+cd atomquest-portal
+npm install
+```
+
+### 2. Configure Environment
+Create a `.env` file in the root directory:
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+# VITE_AZURE_CLIENT_ID=your-azure-app-client-id  (Optional)
+```
+
+### 3. Database Migration
+In your Supabase project, navigate to the **SQL Editor** and execute the migration files in this order:
+1. `supabase_schema.sql` (Base tables)
+2. `supabase_security_migration.sql` (Hardened RLS & Triggers)
+3. `supabase_outbox_migration.sql` (Event-driven architecture)
+4. `supabase_rls_fix.sql` (Recursion patches)
+5. `supabase_demo_users.sql` & `supabase_more_demo_users.sql` (Seeding accounts)
+6. `fix_judge_roles.sql` (Final role enforcements)
+
+### 4. Start the Application
+```bash
+npm run dev
+```
+The application will be available at `http://localhost:5173`.
+
+---
+
+<div align="center">
+  <p>Built with ❤️ by Thanmay Dambekodi & Team</p>
+  <p><i>Internal Hackathon Project — 2026</i></p>
+</div>
