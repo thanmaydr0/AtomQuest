@@ -9,6 +9,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { useTourStore } from '@/stores/tourStore';
 import { supabase } from '@/lib/supabase';
 import { LightRays } from '@/components/shared/LightRays';
+import { CreepyButton } from '@/components/shared/CreepyButton';
+import { JellySqueeze } from '@/components/shared/JellySqueeze';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
@@ -85,12 +87,13 @@ export function LoginPage() {
     setDemoStarting(true);
     try {
       startTour();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: 'demo-employee@atomquest.com',
-        password: 'judge2026'
-      });
-      if (error) throw error;
-      navigate('/dashboard');
+      await signIn('demo-employee@atomquest.com', 'judge2026');
+      const currentRole = useAuthStore.getState().role;
+      if (currentRole) {
+        redirectByRole(currentRole);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       toast.error(`Demo failed: ${err.message}`);
       useTourStore.getState().exitTour();
@@ -181,6 +184,12 @@ export function LoginPage() {
               </div>
             </div>
           </div>
+          
+          <div className="mt-10 w-full max-w-[440px] rounded-[36px] bg-[#b1b3c0] shadow-[0_0_60px_-15px_rgba(255,255,255,0.15)] relative overflow-hidden ring-1 ring-white/10 mx-auto lg:mx-0">
+             <div className="p-8 pb-2 h-full">
+               <JellySqueeze title="Need a moment? Squeeze the jelly." />
+             </div>
+          </div>
         </section>
 
         <div className="flex justify-end">
@@ -255,18 +264,20 @@ export function LoginPage() {
                   )}
                 </div>
 
-                <button
+                <CreepyButton
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#fdb913] px-4 py-2.5 text-sm font-semibold text-black transition-all hover:bg-[#fdb913]/90 hover:shadow-lg hover:shadow-[#fdb913]/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full"
                 >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <LogIn className="h-4 w-4" />
-                  )}
-                  {isSubmitting ? 'Signing in...' : 'Sign in'}
-                </button>
+                  <span className="flex items-center justify-center gap-2">
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LogIn className="h-4 w-4" />
+                    )}
+                    {isSubmitting ? 'Signing in...' : 'Sign in'}
+                  </span>
+                </CreepyButton>
               </form>
 
               {hasAzureConfig && (

@@ -225,7 +225,7 @@ export default function AdminReports() {
             {!sheetUrl && (
               <input
                 type="text"
-                placeholder="Optional: Paste Sheet URL"
+                placeholder="Required: Paste Sheet URL"
                 className="rounded-lg border border-neutral-700 bg-neutral-800/60 px-3 py-2 text-xs text-white outline-none w-48 focus:border-[#fdb913]"
                 onChange={(e) => {
                   const match = e.target.value.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -234,10 +234,10 @@ export default function AdminReports() {
                 }}
               />
             )}
-            <button onClick={syncToSheets} disabled={syncing}
+            <button onClick={syncToSheets} disabled={syncing || !sheetId}
               className="flex items-center gap-2 rounded-lg bg-emerald-600/15 px-4 py-2.5 text-sm font-semibold text-emerald-400 transition-all hover:bg-emerald-600/25 disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-700/30">
               {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sheet className="h-4 w-4" />}
-              {syncing ? 'Syncing…' : sheetId ? 'Re-sync to Sheets' : 'Sync to Google Sheets'}
+              {syncing ? 'Syncing…' : sheetId ? 'Sync to Google Sheets' : 'Paste link to sync'}
             </button>
           </div>
           {sheetUrl && (

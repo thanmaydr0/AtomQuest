@@ -1,16 +1,18 @@
--- Add or Update Demo Users for Hackathon Judge Flow
+-- ============================================================================
+-- Add Additional Demo Users for Judges
 -- Run this in the Supabase SQL Editor
+-- ============================================================================
 
--- 1. Demo Manager User
+-- 1. Judge Employee (Reports to Judge Manager: 99999999-9999-9999-9999-999999999999)
 INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token, email_change, email_change_token_new, recovery_token)
 VALUES (
-  '55555555-5555-5555-5555-555555555555',
+  '88888888-8888-8888-8888-888888888888',
   '00000000-0000-0000-0000-000000000000',
-  'demo-manager@atomquest.com',
+  'judge-employee@atomquest.com',
   crypt('judge2026', gen_salt('bf')),
   now(),
   '{"provider": "email", "providers": ["email"]}',
-  '{"name": "Demo Manager"}',
+  '{"name": "Judge Employee"}',
   now(), now(),
   'authenticated', 'authenticated',
   '', '', '', ''
@@ -19,60 +21,29 @@ VALUES (
 INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
-  '55555555-5555-5555-5555-555555555555',
-  '55555555-5555-5555-5555-555555555555',
-  jsonb_build_object('sub', '55555555-5555-5555-5555-555555555555', 'email', 'demo-manager@atomquest.com'),
+  '88888888-8888-8888-8888-888888888888',
+  '88888888-8888-8888-8888-888888888888',
+  jsonb_build_object('sub', '88888888-8888-8888-8888-888888888888', 'email', 'judge-employee@atomquest.com'),
   'email',
   now(), now(), now()
 ) ON CONFLICT DO NOTHING;
--- Force identity update if it already existed
-UPDATE auth.identities SET identity_data = jsonb_build_object('sub', '55555555-5555-5555-5555-555555555555', 'email', 'demo-manager@atomquest.com') WHERE user_id = '55555555-5555-5555-5555-555555555555';
-
-INSERT INTO public.users (user_id, email, name, role, department)
-VALUES ('55555555-5555-5555-5555-555555555555', 'demo-manager@atomquest.com', 'Demo Manager', 'manager', 'Hackathon')
-ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email;
-
-
--- 2. Demo Employee User
-INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token, email_change, email_change_token_new, recovery_token)
-VALUES (
-  '66666666-6666-6666-6666-666666666666',
-  '00000000-0000-0000-0000-000000000000',
-  'demo-employee@atomquest.com',
-  crypt('judge2026', gen_salt('bf')),
-  now(),
-  '{"provider": "email", "providers": ["email"]}',
-  '{"name": "Demo Employee"}',
-  now(), now(),
-  'authenticated', 'authenticated',
-  '', '', '', ''
-) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, encrypted_password = EXCLUDED.encrypted_password;
-
-INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-VALUES (
-  gen_random_uuid(),
-  '66666666-6666-6666-6666-666666666666',
-  '66666666-6666-6666-6666-666666666666',
-  jsonb_build_object('sub', '66666666-6666-6666-6666-666666666666', 'email', 'demo-employee@atomquest.com'),
-  'email',
-  now(), now(), now()
-) ON CONFLICT DO NOTHING;
-UPDATE auth.identities SET identity_data = jsonb_build_object('sub', '66666666-6666-6666-6666-666666666666', 'email', 'demo-employee@atomquest.com') WHERE user_id = '66666666-6666-6666-6666-666666666666';
+UPDATE auth.identities SET identity_data = jsonb_build_object('sub', '88888888-8888-8888-8888-888888888888', 'email', 'judge-employee@atomquest.com') WHERE user_id = '88888888-8888-8888-8888-888888888888';
 
 INSERT INTO public.users (user_id, email, name, role, manager_id, department)
-VALUES ('66666666-6666-6666-6666-666666666666', 'demo-employee@atomquest.com', 'Demo Employee', 'employee', '55555555-5555-5555-5555-555555555555', 'Hackathon')
-ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email;
+VALUES ('88888888-8888-8888-8888-888888888888', 'judge-employee@atomquest.com', 'Judge Employee', 'employee', '99999999-9999-9999-9999-999999999999', 'Hackathon')
+ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, manager_id = EXCLUDED.manager_id;
 
--- 3. Demo Admin User
+
+-- 2. Judge Manager
 INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token, email_change, email_change_token_new, recovery_token)
 VALUES (
-  '77777777-7777-7777-7777-777777777777',
+  '99999999-9999-9999-9999-999999999999',
   '00000000-0000-0000-0000-000000000000',
-  'demo-admin@atomquest.com',
+  'judge-manager@atomquest.com',
   crypt('judge2026', gen_salt('bf')),
   now(),
   '{"provider": "email", "providers": ["email"]}',
-  '{"name": "Demo Admin"}',
+  '{"name": "Judge Manager"}',
   now(), now(),
   'authenticated', 'authenticated',
   '', '', '', ''
@@ -81,14 +52,45 @@ VALUES (
 INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
-  '77777777-7777-7777-7777-777777777777',
-  '77777777-7777-7777-7777-777777777777',
-  jsonb_build_object('sub', '77777777-7777-7777-7777-777777777777', 'email', 'demo-admin@atomquest.com'),
+  '99999999-9999-9999-9999-999999999999',
+  '99999999-9999-9999-9999-999999999999',
+  jsonb_build_object('sub', '99999999-9999-9999-9999-999999999999', 'email', 'judge-manager@atomquest.com'),
   'email',
   now(), now(), now()
 ) ON CONFLICT DO NOTHING;
-UPDATE auth.identities SET identity_data = jsonb_build_object('sub', '77777777-7777-7777-7777-777777777777', 'email', 'demo-admin@atomquest.com') WHERE user_id = '77777777-7777-7777-7777-777777777777';
+UPDATE auth.identities SET identity_data = jsonb_build_object('sub', '99999999-9999-9999-9999-999999999999', 'email', 'judge-manager@atomquest.com') WHERE user_id = '99999999-9999-9999-9999-999999999999';
 
 INSERT INTO public.users (user_id, email, name, role, department)
-VALUES ('77777777-7777-7777-7777-777777777777', 'demo-admin@atomquest.com', 'Demo Admin', 'admin', 'Hackathon')
+VALUES ('99999999-9999-9999-9999-999999999999', 'judge-manager@atomquest.com', 'Judge Manager', 'manager', 'Hackathon')
+ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email;
+
+
+-- 3. Judge Admin
+INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token, email_change, email_change_token_new, recovery_token)
+VALUES (
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  '00000000-0000-0000-0000-000000000000',
+  'judge-admin@atomquest.com',
+  crypt('judge2026', gen_salt('bf')),
+  now(),
+  '{"provider": "email", "providers": ["email"]}',
+  '{"name": "Judge Admin"}',
+  now(), now(),
+  'authenticated', 'authenticated',
+  '', '', '', ''
+) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, encrypted_password = EXCLUDED.encrypted_password;
+
+INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+VALUES (
+  gen_random_uuid(),
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  jsonb_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'email', 'judge-admin@atomquest.com'),
+  'email',
+  now(), now(), now()
+) ON CONFLICT DO NOTHING;
+UPDATE auth.identities SET identity_data = jsonb_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'email', 'judge-admin@atomquest.com') WHERE user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+INSERT INTO public.users (user_id, email, name, role, department)
+VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'judge-admin@atomquest.com', 'Judge Admin', 'admin', 'Hackathon')
 ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email;

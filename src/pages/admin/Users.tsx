@@ -67,9 +67,7 @@ export default function AdminUsers() {
   async function handleUnlock(userId: string) {
     if (!unlockReason.trim()) { toast.error('Reason is required'); return; }
     const { error } = await supabase.from('goals').update({ status: 'approved' }).eq('owner_id', userId).eq('status', 'locked');
-    if (error) { toast.error(error.message); return; }
-    // Log to audit
-    await supabase.from('audit_logs').insert({ table_name: 'goals', record_id: userId, operation: 'UPDATE', changed_by: userId, old_data: { status: 'locked' }, new_data: { status: 'approved', reason: unlockReason.trim() } });
+    if (error) { toast.error('Failed to unlock goals'); return; }
     toast.success('Goals unlocked');
     setUnlockDialog(null); setUnlockReason('');
   }

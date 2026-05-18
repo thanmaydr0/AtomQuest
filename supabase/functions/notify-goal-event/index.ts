@@ -97,6 +97,19 @@ interface GoalEventPayload {
   linkPath?: string;
 }
 
+interface WebhookPayload {
+  type: 'INSERT' | 'UPDATE' | 'DELETE';
+  table: string;
+  schema: string;
+  record: {
+    id: string;
+    event_type: GoalEventPayload['event'];
+    payload: Omit<GoalEventPayload, 'event'>;
+    status: string;
+  };
+  old_record: null | any;
+}
+
 interface GoalRow {
   goal_id: string;
   owner_id: string;
@@ -224,7 +237,25 @@ async function sendTelegram(chatId: string | null | undefined, content: { title:
 
 Deno.serve(async (req: Request) => {
   try {
-    const payload = (await req.json()) as GoalEventPayload;
+    const body = await req.json();
+    let payload: GoalEventPayload;
+    let outboxId: string | undefined;
+
+    // Support both Webhook (outbox pattern) and direct invocation
+    if (body.type === 'INSERT' && body.table === 'outbox_events') {
+      const webhook = body as WebhookPayload;
+      if (webhook.record.status !== 'pending') {
+        return new Response(JSON.stringify({ message: 'Event already processed' }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      payload = {
+        event: webhook.record.event_type,
+        ...webhook.record.payload,
+      };
+      outboxId = webhook.record.id;
+    } else {
+      payload = body as GoalEventPayload;
+    }
+
     if (!payload?.event) {
       return new Response(JSON.stringify({ error: 'Missing event' }), { status: 400 });
     }
@@ -321,6 +352,17 @@ Deno.serve(async (req: Request) => {
         sendTelegram(item.recipient.telegram_chat_id, { title: item.subject, message: item.message, link: item.link }),
       ]);
       sent++;
+    }
+
+    if (outboxId) {
+      const { error: outboxError } = await supabase
+        .from('outbox_events')
+        .update({ status: 'processed', processed_at: new Date().toISOString() })
+        .eq('id', outboxId);
+      
+      if (outboxError) {
+        console.error(`[notify-goal-event] Failed to mark outbox event ${outboxId} as processed:`, outboxError);
+      }
     }
 
     return new Response(JSON.stringify({ message: 'Goal notifications processed', sent }), {

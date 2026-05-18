@@ -28,45 +28,25 @@ async function fetchUserProfile(userId: string): Promise<User | null> {
 }
 
 /**
- * For OAuth/SSO users: if no public.users profile exists yet, create one
- * from the auth session metadata so they don't get stuck in a login loop.
+ * For OAuth/SSO users: the `handle_new_user()` trigger on `auth.users`
+ * creates the public.users profile with role='employee' (SECURITY DEFINER).
+ * We never upsert from the client to prevent role escalation attacks (V-01).
+ * If the trigger hasn't fired yet, we retry with a short delay.
  */
 async function ensureUserProfile(authUser: SupabaseUser): Promise<User | null> {
-  // First try to fetch the existing profile
+  // Try to fetch the existing profile (trigger should have created it)
   let profile = await fetchUserProfile(authUser.id);
   if (profile) return profile;
 
-  // Profile doesn't exist — auto-provision from OAuth metadata
-  const meta = authUser.user_metadata ?? {};
-  const name =
-    meta.full_name ||
-    meta.name ||
-    meta.preferred_username ||
-    authUser.email?.split('@')[0] ||
-    'User';
-
-  const { error } = await supabase.from('users').upsert(
-    {
-      user_id: authUser.id,
-      email: authUser.email ?? '',
-      name,
-      role: 'employee' as Role,
-      department: '',
-    },
-    { onConflict: 'user_id' }
-  );
-
-  if (error) {
-    console.error('Failed to auto-create user profile:', error.message);
-    // Even if upsert fails (e.g. RLS), try fetching again — the trigger might have created it
-    await new Promise((r) => setTimeout(r, 500));
+  // Trigger may not have fired yet — wait and retry (up to 3 attempts)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await new Promise((r) => setTimeout(r, 600));
     profile = await fetchUserProfile(authUser.id);
-    return profile;
+    if (profile) return profile;
   }
 
-  // Fetch the newly created profile
-  profile = await fetchUserProfile(authUser.id);
-  return profile;
+  console.error('User profile not found after auth — trigger may have failed');
+  return null;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({

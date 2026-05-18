@@ -15,15 +15,7 @@ import { WhatIfSimulator } from '@/components/manager/WhatIfSimulator';
 import toast from 'react-hot-toast';
 import { Sparkles } from 'lucide-react';
 
-async function notifyGoalEvent(event: 'goal_approved' | 'goal_returned', payload: Record<string, unknown>) {
-  try {
-    await supabase.functions.invoke('notify-goal-event', {
-      body: { event, ...payload },
-    });
-  } catch (error) {
-    console.warn(`[GoalReviewPanel] notify-goal-event failed for ${event}:`, error);
-  }
-}
+
 
 interface GoalReviewPanelProps {
   employeeName: string;
@@ -115,31 +107,29 @@ export function GoalReviewPanel({
     }
 
     setProcessing(true);
-    const ownerIds = [...new Set(localGoals.map((g) => g.owner_id))];
+    const employeeId = localGoals[0]?.owner_id;
 
-    const { error } = await supabase
-      .from('goals')
-      .update({ status: 'locked', updated_at: new Date().toISOString() })
-      .in('owner_id', ownerIds)
-      .eq('cycle_id', cycleId)
-      .eq('status', 'submitted');
+    try {
+      // Use server-side RPC that validates manager-report relationship (V-04)
+      const { data, error } = await supabase.rpc('approve_goal_sheet', {
+        p_manager_id: (await supabase.auth.getUser()).data.user?.id,
+        p_employee_id: employeeId,
+        p_cycle_id: cycleId,
+      });
 
-    setProcessing(false);
+      if (error) {
+        toast.error(`Failed to approve: ${error.message}`);
+        setProcessing(false);
+        return;
+      }
 
-    if (error) {
-      toast.error(`Failed to approve: ${error.message}`);
-      return;
+      toast.success(`${employeeName}'s goals approved and locked!`);
+      onActionComplete();
+    } catch (err: any) {
+      toast.error(`Approval failed: ${err.message}`);
+    } finally {
+      setProcessing(false);
     }
-
-    await notifyGoalEvent('goal_approved', {
-      ownerId: ownerIds[0],
-      cycleId,
-      goalId: localGoals[0]?.goal_id,
-      linkPath: '/dashboard',
-    });
-
-    toast.success(`${employeeName}'s goals approved and locked!`);
-    onActionComplete();
   }
 
   async function handleReturn() {
@@ -149,43 +139,32 @@ export function GoalReviewPanel({
     }
 
     setProcessing(true);
-    const ownerIds = [...new Set(localGoals.map((g) => g.owner_id))];
+    const employeeId = localGoals[0]?.owner_id;
 
-    const { error } = await supabase
-      .from('goals')
-      .update({ status: 'returned', updated_at: new Date().toISOString() })
-      .in('owner_id', ownerIds)
-      .eq('cycle_id', cycleId)
-      .eq('status', 'submitted');
+    try {
+      // Use server-side RPC that validates manager-report relationship (V-04)
+      const { data, error } = await supabase.rpc('return_goal_sheet', {
+        p_manager_id: (await supabase.auth.getUser()).data.user?.id,
+        p_employee_id: employeeId,
+        p_cycle_id: cycleId,
+        p_comment: returnComment.trim(),
+      });
 
-    if (error) {
-      toast.error(`Failed to return: ${error.message}`);
+      if (error) {
+        toast.error(`Failed to return: ${error.message}`);
+        setProcessing(false);
+        return;
+      }
+
+      setReturnDialogOpen(false);
+      setReturnComment('');
+      toast.success(`${employeeName}'s goals returned for rework`);
+      onActionComplete();
+    } catch (err: any) {
+      toast.error(`Return failed: ${err.message}`);
+    } finally {
       setProcessing(false);
-      return;
     }
-
-    // Log the return comment as an escalation
-    const { error: escError } = await supabase.from('escalation_logs').insert({
-      user_id: ownerIds[0],
-      escalation_type: 'goal_returned',
-      message: returnComment.trim(),
-    });
-
-    if (escError) console.warn('Failed to log escalation:', escError.message);
-
-    await notifyGoalEvent('goal_returned', {
-      ownerId: ownerIds[0],
-      cycleId,
-      goalId: localGoals[0]?.goal_id,
-      comment: returnComment,
-      linkPath: '/dashboard',
-    });
-
-    setProcessing(false);
-    setReturnDialogOpen(false);
-    setReturnComment('');
-    toast.success(`${employeeName}'s goals returned for rework`);
-    onActionComplete();
   }
 
   const uomLabel: Record<string, string> = {

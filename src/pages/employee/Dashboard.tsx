@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { WeightageMeter } from '@/components/shared/WeightageMeter';
 import { SkeletonCards } from '@/components/shared/Skeletons';
 import { WorkflowTimeline } from '@/components/shared/WorkflowTimeline';
+import { CreepyButton } from '@/components/shared/CreepyButton';
 import type { Goal, GoalStatus } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -182,11 +183,13 @@ export default function EmployeeDashboard() {
               className="flex items-center gap-1.5 rounded-lg bg-neutral-800 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed">
               <Plus className="h-4 w-4" />Add Goal
             </button>
-            <button onClick={() => setSubmitConfirm(true)} disabled={!canSubmit || submitting}
+            <CreepyButton onClick={() => setSubmitConfirm(true)} disabled={!canSubmit || submitting}
               title={!canSubmit ? totalWeightage !== 100 ? 'Total weightage must equal 100%' : 'Fix goals first' : ''}
-              className="flex items-center gap-1.5 rounded-lg bg-[#fdb913] px-4 py-2 text-sm font-semibold text-black hover:bg-[#e5a710] disabled:opacity-40 disabled:cursor-not-allowed">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Submit Goal Sheet
-            </button>
+            >
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-black">
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Submit Goal Sheet
+              </span>
+            </CreepyButton>
           </div>
         )}
       </div>

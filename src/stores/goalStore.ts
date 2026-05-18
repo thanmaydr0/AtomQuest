@@ -3,18 +3,6 @@ import { supabase } from '@/lib/supabase';
 import type { Goal, GoalCycle } from '@/types';
 import toast from 'react-hot-toast';
 
-type GoalEvent = 'goal_saved' | 'goal_submitted';
-
-async function notifyGoalEvent(event: GoalEvent, payload: Record<string, unknown>) {
-  try {
-    await supabase.functions.invoke('notify-goal-event', {
-      body: { event, ...payload },
-    });
-  } catch (error) {
-    console.warn(`[goalStore] notify-goal-event failed for ${event}:`, error);
-  }
-}
-
 interface GoalStore {
   goals: Goal[];
   activeCycle: GoalCycle | null;
@@ -92,7 +80,7 @@ export const useGoalStore = create<GoalStore>((set, get) => ({
   updateGoal: async (goalId, updates) => {
     const { error } = await supabase
       .from('goals')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('goal_id', goalId);
 
     if (error) {
@@ -105,16 +93,6 @@ export const useGoalStore = create<GoalStore>((set, get) => ({
         g.goal_id === goalId ? { ...g, ...updates } : g
       ),
     });
-
-    const updatedGoal = get().goals.find((g) => g.goal_id === goalId);
-    if (updatedGoal) {
-      await notifyGoalEvent('goal_saved', {
-        goalId,
-        ownerId: updatedGoal.owner_id,
-        cycleId: updatedGoal.cycle_id,
-        linkPath: '/manager/approvals',
-      });
-    }
 
     toast.success('Goal updated');
   },
@@ -137,38 +115,35 @@ export const useGoalStore = create<GoalStore>((set, get) => ({
   submitGoalSheet: async (userId, cycleId) => {
     set({ submitting: true });
 
-    const { error } = await supabase
-      .from('goals')
-      .update({ status: 'submitted', updated_at: new Date().toISOString() })
-      .eq('owner_id', userId)
-      .eq('cycle_id', cycleId)
-      .in('status', ['draft', 'returned']);
+    try {
+      // Use the atomic server-side RPC with row-level locking
+      const { data, error } = await supabase.rpc('submit_goal_sheet', {
+        p_user_id: userId,
+        p_cycle_id: cycleId,
+      });
 
-    if (error) {
-      toast.error(`Failed to submit goal sheet: ${error.message}`);
+      if (error) {
+        toast.error(`Failed to submit goal sheet: ${error.message}`);
+        set({ submitting: false });
+        return;
+      }
+
+      const affectedGoals = get().goals.filter((g) => g.status === 'draft' || g.status === 'returned');
+
+      // Refresh goals to reflect new status
+      set({
+        submitting: false,
+        goals: get().goals.map((g) =>
+          g.status === 'draft' || g.status === 'returned'
+            ? { ...g, status: 'submitted' as const }
+            : g
+        ),
+      });
+
+      toast.success(`Goal sheet submitted for approval! (${(data as any)?.goals_submitted ?? ''} goals)`);
+    } catch (err: any) {
+      toast.error(`Submission failed: ${err.message}`);
       set({ submitting: false });
-      return;
     }
-
-    const affectedGoals = get().goals.filter((g) => g.status === 'draft' || g.status === 'returned');
-
-    // Refresh goals to reflect new status
-    set({
-      submitting: false,
-      goals: get().goals.map((g) =>
-        g.status === 'draft' || g.status === 'returned'
-          ? { ...g, status: 'submitted' as const }
-          : g
-      ),
-    });
-
-    await notifyGoalEvent('goal_submitted', {
-      ownerId: userId,
-      cycleId,
-      goalId: affectedGoals[0]?.goal_id,
-      linkPath: '/manager/approvals',
-    });
-
-    toast.success('Goal sheet submitted for approval!');
   },
 }));

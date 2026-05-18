@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTourStore } from '../stores/tourStore';
-import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 import { ChevronRight, X, Loader2, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,19 +50,20 @@ export function JudgeTourOverlay() {
   const handleNext = async () => {
     if (!currentStepData.nextEmail) {
       exitTour();
-      await supabase.auth.signOut();
+      await useAuthStore.getState().signOut();
       navigate('/login');
       return;
     }
 
     setLoading(true);
     try {
-      await supabase.auth.signOut();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: currentStepData.nextEmail,
-        password: currentStepData.nextPass
-      });
-      if (error) throw error;
+      await useAuthStore.getState().signOut();
+      // Small delay to let signOut propagate
+      await new Promise((r) => setTimeout(r, 200));
+      await useAuthStore.getState().signIn(
+        currentStepData.nextEmail,
+        currentStepData.nextPass!
+      );
       
       nextStep();
       navigate(currentStepData.nextRoute as string);
@@ -76,7 +77,7 @@ export function JudgeTourOverlay() {
 
   const handleExit = async () => {
     exitTour();
-    await supabase.auth.signOut();
+    await useAuthStore.getState().signOut();
     navigate('/login');
   };
 

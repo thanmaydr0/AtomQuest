@@ -205,18 +205,51 @@ Based on this data, answer the admin's question precisely. Respond with JSON:
   "confidence": "high | medium | low"
 }`;
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Content-Type': 'application/json',
-};
+// V-10 FIX: CORS origin allowlist instead of wildcard
+const ALLOWED_ORIGINS = [
+  'https://teser.in',
+  'http://localhost:5173',
+  'http://localhost:5174',
+];
 
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Content-Type': 'application/json',
+  };
+}
+
+// V-06 FIX: In-memory rate limiter (20 requests/minute per user)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string, limit = 20, windowMs = 60_000): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= limit) return false;
+  entry.count++;
+  return true;
+}
+
+// V-08 FIX: Sanitize user input to prevent prompt injection
+function sanitizeForPrompt(input: string, maxLength = 500): string {
+  return input
+    .replace(/```/g, '')           // Remove code fences
+    .replace(/\n{3,}/g, '\n\n')    // Collapse excessive newlines
+    .slice(0, maxLength);          // Hard length limit
+}
+
+function jsonResponse(body: unknown, origin: string | null, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     ...init,
     headers: {
-      ...corsHeaders,
+      ...getCorsHeaders(origin),
       ...(init.headers ?? {}),
     },
   });
@@ -251,18 +284,20 @@ async function callOpenAI(systemPrompt: string, userPrompt: string, maxTokens = 
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('origin');
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(origin) });
   }
 
   try {
     if (!OPENAI_KEY) {
-      return jsonResponse({ error: 'OPENAI_API_KEY not configured' }, { status: 500 });
+      return jsonResponse({ error: 'AI service unavailable' }, origin, { status: 500 });
     }
 
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization' }, { status: 401 });
+      return jsonResponse({ error: 'Missing authorization' }, origin, { status: 401 });
     }
 
     const supabase = createClient(
@@ -275,7 +310,12 @@ Deno.serve(async (req: Request) => {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      return jsonResponse({ error: 'Unauthorized' }, { status: 401 });
+      return jsonResponse({ error: 'Unauthorized' }, origin, { status: 401 });
+    }
+
+    // V-06: Rate limit check
+    if (!checkRateLimit(user.id)) {
+      return jsonResponse({ error: 'Rate limit exceeded. Try again in a minute.' }, origin, { status: 429 });
     }
 
     const body = (await req.json()) as CoachRequest;
@@ -284,15 +324,16 @@ Deno.serve(async (req: Request) => {
     switch (body.mode) {
       case 'suggest': {
         if (!body.naturalText) {
-          return jsonResponse({ error: 'Missing naturalText' }, { status: 400 });
+          return jsonResponse({ error: 'Missing naturalText' }, origin, { status: 400 });
         }
-        const prompt = SUGGEST_PROMPT.replace('{text}', body.naturalText);
+        // V-08: Sanitize user input before prompt injection
+        const prompt = SUGGEST_PROMPT.replace('{text}', sanitizeForPrompt(body.naturalText));
         result = await callOpenAI(SYSTEM_PROMPT, prompt);
         break;
       }
       case 'score': {
         if (!body.goal) {
-          return jsonResponse({ error: 'Missing goal' }, { status: 400 });
+          return jsonResponse({ error: 'Missing goal' }, origin, { status: 400 });
         }
         const prompt = SCORE_PROMPT
           .replace('{title}', body.goal.title)
@@ -305,7 +346,7 @@ Deno.serve(async (req: Request) => {
       }
       case 'review': {
         if (!body.goals || !body.employeeName) {
-          return jsonResponse({ error: 'Missing goals or employeeName' }, { status: 400 });
+          return jsonResponse({ error: 'Missing goals or employeeName' }, origin, { status: 400 });
         }
         const prompt = REVIEW_PROMPT
           .replace('{employeeName}', body.employeeName)
@@ -315,7 +356,7 @@ Deno.serve(async (req: Request) => {
       }
       case 'predict_risk': {
         if (!body.goal || !body.cycle_phase) {
-          return jsonResponse({ error: 'Missing goal or cycle_phase for risk prediction' }, { status: 400 });
+          return jsonResponse({ error: 'Missing goal or cycle_phase for risk prediction' }, origin, { status: 400 });
         }
         
         const checkinsJson = body.checkins && body.checkins.length > 0 
@@ -335,7 +376,7 @@ Deno.serve(async (req: Request) => {
       }
       case 'analytics': {
         if (!body.question) {
-          return jsonResponse({ error: 'Missing question' }, { status: 400 });
+          return jsonResponse({ error: 'Missing question' }, origin, { status: 400 });
         }
 
         const adminClient = createClient(
@@ -350,7 +391,7 @@ Deno.serve(async (req: Request) => {
           .single();
 
         if (!userData || userData.role !== 'admin') {
-          return jsonResponse({ error: 'Admin access required' }, { status: 403 });
+          return jsonResponse({ error: 'Admin access required' }, origin, { status: 403 });
         }
 
         const { data: cycleData } = await adminClient
@@ -361,7 +402,7 @@ Deno.serve(async (req: Request) => {
           .single();
 
         if (!cycleData) {
-          return jsonResponse({ error: 'No active cycle' }, { status: 404 });
+          return jsonResponse({ error: 'No active cycle' }, origin, { status: 404 });
         }
 
         const [{ data: usersData }, { data: goalsData }, { data: checkinsData }, { data: escData }] = await Promise.all([
@@ -411,8 +452,9 @@ Deno.serve(async (req: Request) => {
           })
           .join('\n');
 
+        // V-08: Sanitize user question to prevent prompt injection
         const prompt = ANALYTICS_PROMPT
-          .replace('{question}', body.question)
+          .replace('{question}', sanitizeForPrompt(body.question, 1000))
           .replace('{cycleName}', cycleData.cycle_name)
           .replace('{phase}', cycleData.phase)
           .replace('{empCount}', String(employees.length))
@@ -425,12 +467,11 @@ Deno.serve(async (req: Request) => {
           .replace('{escalationSummary}', escalationSummary || 'No escalations');
 
         result = await callOpenAI(ANALYTICS_SYSTEM, prompt, 1200);
-        result = await callOpenAI(ANALYTICS_SYSTEM, prompt, 1200);
         break;
       }
       case 'simulate': {
         if (!body.goal || !body.proposed_goal || !body.cycle_phase) {
-          return jsonResponse({ error: 'Missing goal, proposed_goal, or cycle_phase for simulation' }, { status: 400 });
+          return jsonResponse({ error: 'Missing goal, proposed_goal, or cycle_phase for simulation' }, origin, { status: 400 });
         }
         
         const checkinsCount = body.checkins ? body.checkins.length : 0;
@@ -447,11 +488,13 @@ Deno.serve(async (req: Request) => {
         break;
       }
       default:
-        return jsonResponse({ error: 'Invalid mode' }, { status: 400 });
+        return jsonResponse({ error: 'Invalid mode' }, origin, { status: 400 });
     }
 
-    return jsonResponse({ mode: body.mode, result: JSON.parse(result) });
+    return jsonResponse({ mode: body.mode, result: JSON.parse(result) }, origin);
   } catch (err) {
-    return jsonResponse({ error: String(err) }, { status: 500 });
+    // V-11: Don't leak internal error details to the client
+    console.error('[ai-coach] Internal error:', err);
+    return jsonResponse({ error: 'An internal error occurred' }, origin, { status: 500 });
   }
 });

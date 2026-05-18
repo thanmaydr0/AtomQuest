@@ -1,22 +1,25 @@
--- Run this in Supabase SQL Editor to fix the RLS policy for goal submission
+-- ============================================================================
+-- BUG FIX: Infinite Recursion in RLS Policy
+-- ============================================================================
+-- The previous 'users_scoped_select' policy contained a subquery on the 
+-- public.users table, which caused an infinite recursion error during login.
+-- This script replaces the subquery with a SECURITY DEFINER function to 
+-- safely fetch the manager ID without triggering the RLS policy again.
 
--- Drop the restrictive update policy
-DROP POLICY IF EXISTS "Employees can update their own draft/returned goals" ON public.goals;
+-- 1. Create a safe function to get the current user's manager ID
+CREATE OR REPLACE FUNCTION public.get_user_manager_id()
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT manager_id FROM public.users WHERE user_id = auth.uid();
+$$;
 
--- Re-create with proper USING + WITH CHECK
--- USING: which rows the employee can try to update (their own draft/returned goals)
--- WITH CHECK: what the new row values can be (including submitted status)
-CREATE POLICY "Employees can update their own draft/returned goals" ON public.goals
-    FOR UPDATE
-    USING (owner_id = auth.uid() AND status IN ('draft', 'returned'))
-    WITH CHECK (owner_id = auth.uid() AND status IN ('draft', 'returned', 'submitted'));
+-- 2. Drop the broken policy
+DROP POLICY IF EXISTS "users_scoped_select" ON public.users;
 
--- Also allow employees to delete their own draft goals
-DROP POLICY IF EXISTS "Employees can delete their own draft goals" ON public.goals;
-CREATE POLICY "Employees can delete their own draft goals" ON public.goals
-    FOR DELETE USING (owner_id = auth.uid() AND status = 'draft');
-
--- Fix: allow authenticated users to insert escalation logs (for the return flow)
-DROP POLICY IF EXISTS "Authenticated users can insert escalation logs" ON public.escalation_logs;
-CREATE POLICY "Authenticated users can insert escalation logs" ON public.escalation_logs
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- 3. Create the fixed policy using the safe functions
+CREATE POLICY "users_scoped_select" ON public.users
+    FOR SELECT USING (
+        user_id = auth.uid()                           -- own profile
+        OR manager_id = auth.uid()                     -- direct reports (for managers)
+        OR user_id = public.get_user_manager_id()      -- own manager (using safe function)
+        OR public.get_auth_role() IN ('admin', 'manager')     -- admins and managers see everyone
+    );
