@@ -3,6 +3,7 @@ import { MessageSquare, Users, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useGoalStore } from '@/stores/goalStore';
 import { supabase } from '@/lib/supabase';
+import { PredictiveRiskBadge } from '@/components/shared/PredictiveRiskBadge';
 import { scoreBgColor, getActivePhaseLabel } from '@/lib/scoring';
 import type { Goal, CheckIn, User } from '@/types';
 import toast from 'react-hot-toast';
@@ -156,8 +157,15 @@ export default function ManagerCheckinReview() {
                       return (
                         <tr key={goal.goal_id} className="border-b border-neutral-800/50 hover:bg-neutral-800/20">
                           <td className="px-5 py-3">
-                            <div className="font-medium text-neutral-200 max-w-[180px] truncate">{goal.title}</div>
-                            <div className="text-[10px] text-neutral-600">{goal.thrust_area}</div>
+                            <div className="font-medium text-neutral-200 max-w-[180px] truncate mb-1">{goal.title}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-neutral-600 uppercase tracking-wider">{goal.thrust_area}</span>
+                              <PredictiveRiskBadge 
+                                goal={goal} 
+                                cyclePhase={activeCycle?.phase ?? ''} 
+                                checkins={ci ? [ci] : []} 
+                              />
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-neutral-400">
                             {goal.uom_type === 'timeline'

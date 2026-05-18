@@ -8,8 +8,22 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { AIReviewPanel } from '@/components/manager/AIReviewPanel';
 import type { Goal } from '@/types';
+import { PredictiveRiskBadge } from '@/components/shared/PredictiveRiskBadge';
+import { WhatIfSimulator } from '@/components/manager/WhatIfSimulator';
 import toast from 'react-hot-toast';
+import { Sparkles } from 'lucide-react';
+
+async function notifyGoalEvent(event: 'goal_approved' | 'goal_returned', payload: Record<string, unknown>) {
+  try {
+    await supabase.functions.invoke('notify-goal-event', {
+      body: { event, ...payload },
+    });
+  } catch (error) {
+    console.warn(`[GoalReviewPanel] notify-goal-event failed for ${event}:`, error);
+  }
+}
 
 interface GoalReviewPanelProps {
   employeeName: string;
@@ -37,6 +51,7 @@ export function GoalReviewPanel({
   const [approveConfirm, setApproveConfirm] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnComment, setReturnComment] = useState('');
+  const [simulatingGoal, setSimulatingGoal] = useState<Goal | null>(null);
 
   const totalWeightage = localGoals.reduce((sum, g) => sum + g.weightage, 0);
   const isWeightageValid = totalWeightage === 100;
@@ -116,6 +131,13 @@ export function GoalReviewPanel({
       return;
     }
 
+    await notifyGoalEvent('goal_approved', {
+      ownerId: ownerIds[0],
+      cycleId,
+      goalId: localGoals[0]?.goal_id,
+      linkPath: '/dashboard',
+    });
+
     toast.success(`${employeeName}'s goals approved and locked!`);
     onActionComplete();
   }
@@ -151,6 +173,14 @@ export function GoalReviewPanel({
 
     if (escError) console.warn('Failed to log escalation:', escError.message);
 
+    await notifyGoalEvent('goal_returned', {
+      ownerId: ownerIds[0],
+      cycleId,
+      goalId: localGoals[0]?.goal_id,
+      comment: returnComment,
+      linkPath: '/dashboard',
+    });
+
     setProcessing(false);
     setReturnDialogOpen(false);
     setReturnComment('');
@@ -167,6 +197,24 @@ export function GoalReviewPanel({
 
   return (
     <div className="border-t border-neutral-800 bg-neutral-950/50 px-6 py-5">
+      {/* AI Manager Review */}
+      <div className="mb-6">
+        <AIReviewPanel
+          employeeName={employeeName}
+          goals={localGoals.map(g => ({
+            title: g.title,
+            thrust_area: g.thrust_area,
+            uom_type: g.uom_type,
+            weightage: g.weightage,
+            status: g.status
+          }))}
+          onUseComment={(comment) => {
+            setReturnComment(comment);
+            setReturnDialogOpen(true);
+          }}
+        />
+      </div>
+
       {/* Data grid */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -188,11 +236,26 @@ export function GoalReviewPanel({
           <tbody>
             {localGoals.map((goal) => (
               <tr key={goal.goal_id} className="border-b border-neutral-800/50 hover:bg-neutral-900/40">
-                {/* Thrust Area */}
-                <td className="py-3 pr-4">
-                  <span className="inline-flex items-center rounded-full bg-[#fdb913]/10 px-2 py-0.5 text-xs font-medium text-[#fdb913]">
-                    {goal.thrust_area}
-                  </span>
+                {/* Thrust Area & Risk Badge */}
+                <td className="py-3 pr-4 align-top">
+                  <div className="flex flex-col items-start gap-2">
+                    <span className="inline-flex items-center rounded-full bg-[#fdb913]/10 px-2 py-0.5 text-xs font-medium text-[#fdb913]">
+                      {goal.thrust_area}
+                    </span>
+                    <PredictiveRiskBadge 
+                      goal={goal}
+                      cyclePhase="Goal Setting"
+                      checkins={[]}
+                    />
+                    <button
+                      onClick={() => setSimulatingGoal(goal)}
+                      className="flex items-center gap-1.5 px-2 py-1 mt-1 rounded-full text-[10px] uppercase font-bold tracking-wider text-purple-400 bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 transition-colors"
+                      title="What-If Simulator"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Simulate
+                    </button>
+                  </div>
                 </td>
 
                 {/* Title */}
@@ -351,6 +414,15 @@ export function GoalReviewPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Simulator Modal */}
+      {simulatingGoal && (
+        <WhatIfSimulator
+          goal={simulatingGoal}
+          cyclePhase="Goal Setting"
+          onClose={() => setSimulatingGoal(null)}
+        />
       )}
     </div>
   );

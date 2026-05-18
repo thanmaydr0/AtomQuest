@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Loader2, TrendingUp, TrendingDown, Clock, Ban, Lock } from 'lucide-react';
+import { AICoachPanel } from '@/components/employee/AICoachPanel';
 import type { Goal, UoMType } from '@/types';
 
 const THRUST_AREAS = [
@@ -109,6 +110,30 @@ export function GoalFormModal({
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 p-6">
+          {/* AI Coach — only show when creating/editing (not read-only or shared) */}
+          {!readOnly && !isSharedEdit && (
+            <AICoachPanel
+              onSuggest={(s) => {
+                if (s.thrust_area) reset({
+                  thrust_area: s.thrust_area,
+                  title: s.title || '',
+                  description: s.description || '',
+                  uom_type: (s.uom_type as UoMType) || 'max',
+                  target_value: s.target_value,
+                  deadline_date: s.deadline_date,
+                  weightage: s.weightage || watch('weightage') || 10,
+                });
+              }}
+              goalData={watch('title') ? {
+                title: watch('title'),
+                description: watch('description') || '',
+                thrust_area: watch('thrust_area'),
+                uom_type: watch('uom_type'),
+                target_value: watch('target_value'),
+              } : null}
+            />
+          )}
+
           {/* Shared goal banner */}
           {isSharedEdit && (
             <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-2.5 text-xs text-cyan-400">

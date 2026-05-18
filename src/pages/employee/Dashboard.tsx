@@ -8,7 +8,9 @@ import { GoalFormModal } from '@/components/employee/GoalFormModal';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { WeightageMeter } from '@/components/shared/WeightageMeter';
 import { SkeletonCards } from '@/components/shared/Skeletons';
+import { WorkflowTimeline } from '@/components/shared/WorkflowTimeline';
 import type { Goal, GoalStatus } from '@/types';
+import toast from 'react-hot-toast';
 
 const MAX_GOALS = 8;
 const SHARED_READONLY_FIELDS = ['thrust_area', 'title', 'description', 'uom_type', 'target_value', 'deadline_date'];
@@ -250,6 +252,15 @@ export default function EmployeeDashboard() {
           })}
         </div>
       )}
+
+      {/* Activity Timeline */}
+      <div className="mt-12 pt-8 border-t border-neutral-800/60">
+        <h2 className="flex items-center gap-2 text-xl font-bold text-white mb-6">
+          <FileText className="h-5 w-5 text-emerald-500" />
+          Cycle Activity Timeline
+        </h2>
+        <WorkflowTimeline userId={user!.user_id} cycleId={activeCycle.cycle_id} />
+      </div>
 
       {/* Modals */}
       <GoalFormModal open={modalOpen} onClose={() => { setModalOpen(false); setEditingGoal(null); }}

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouterProvider, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -10,6 +10,7 @@ import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 
 // Auth
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { JudgeTourOverlay } from '@/components/JudgeTourOverlay';
 
 // Employee pages
 import EmployeeDashboard from '@/pages/employee/Dashboard';
@@ -24,6 +25,7 @@ import ManagerMyGoals from '@/pages/manager/MyGoals';
 // Admin pages
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminCycles from '@/pages/admin/Cycles';
+import AdminOrgGraph from '@/pages/admin/OrgGraph';
 import AdminUsers from '@/pages/admin/Users';
 import AdminSharedGoals from '@/pages/admin/SharedGoals';
 import AdminReports from '@/pages/admin/Reports';
@@ -57,8 +59,20 @@ function CatchAllRedirect() {
   return <Navigate to="/login" replace />;
 }
 
+function RootLayout() {
+  return (
+    <>
+      <Outlet />
+      <JudgeTourOverlay />
+    </>
+  );
+}
+
 const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
+  {
+    element: <RootLayout />,
+    children: [
+      { path: '/login', element: <LoginPage /> },
 
   // Employee routes
   {
@@ -94,6 +108,7 @@ const router = createBrowserRouter([
       children: [
         { path: '/admin', element: <E><AdminDashboard /></E> },
         { path: '/admin/cycles', element: <E><AdminCycles /></E> },
+        { path: '/admin/org-graph', element: <E><AdminOrgGraph /></E> },
         { path: '/admin/users', element: <E><AdminUsers /></E> },
         { path: '/admin/shared-goals', element: <E><AdminSharedGoals /></E> },
         { path: '/admin/reports', element: <E><AdminReports /></E> },
@@ -103,8 +118,10 @@ const router = createBrowserRouter([
     }],
   },
 
-  { path: '/', element: <CatchAllRedirect /> },
-  { path: '*', element: <CatchAllRedirect /> },
+      { path: '/', element: <CatchAllRedirect /> },
+      { path: '*', element: <CatchAllRedirect /> },
+    ],
+  },
 ]);
 
 export default function App() {

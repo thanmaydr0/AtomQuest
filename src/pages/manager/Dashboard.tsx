@@ -1,26 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, CheckCircle2, Clock, AlertTriangle, Eye } from 'lucide-react';
+import { Users, CheckCircle2, Clock, AlertTriangle, Eye, RefreshCw, History, X } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useGoalStore } from '@/stores/goalStore';
-import { supabase } from '@/lib/supabase';
-import type { Goal, User, GoalStatus } from '@/types';
+import { cachedRpc, invalidate } from '@/lib/analyticsCache';
+import { WorkflowTimeline } from '@/components/shared/WorkflowTimeline';
+import type { GoalStatus } from '@/types';
 
-interface ReportSummary {
-  employee: User;
-  goalCount: number;
-  totalWeightage: number;
-  sheetStatus: GoalStatus | 'empty';
-}
-
-function deriveStatus(goals: Goal[]): GoalStatus | 'empty' {
-  if (goals.length === 0) return 'empty';
-  const s = new Set(goals.map((g) => g.status));
-  if (s.has('locked')) return 'locked';
-  if (s.has('approved')) return 'approved';
-  if (s.has('submitted')) return 'submitted';
-  if (s.has('returned')) return 'returned';
-  return 'draft';
+interface TeamMember {
+  user_id: string;
+  name: string;
+  department: string;
+  goal_count: number;
+  total_weightage: number;
+  sheet_status: GoalStatus | 'empty';
 }
 
 const statusBadge: Record<string, { label: string; cls: string }> = {
@@ -36,43 +29,45 @@ export default function ManagerTeamDashboard() {
   const user = useAuthStore((s) => s.user);
   const { activeCycle, fetchActiveCycle } = useGoalStore();
   const navigate = useNavigate();
-  const [reports, setReports] = useState<ReportSummary[]>([]);
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTimelineUserId, setSelectedTimelineUserId] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (forceRefresh = false) => {
     if (!user) return;
-    setLoading(true);
+    if (forceRefresh) {
+      setRefreshing(true);
+      invalidate('get_manager_team_summary');
+    } else {
+      setLoading(true);
+    }
+
     let cycle = activeCycle;
     if (!cycle) cycle = await fetchActiveCycle();
-    if (!cycle) { setLoading(false); return; }
+    if (!cycle) { setLoading(false); setRefreshing(false); return; }
 
-    const { data: directReports } = await supabase.from('users').select('*').eq('manager_id', user.user_id);
-    if (!directReports || directReports.length === 0) { setReports([]); setLoading(false); return; }
+    try {
+      const data = await cachedRpc<TeamMember[]>('get_manager_team_summary', {
+        p_manager_id: user.user_id,
+        p_cycle_id: cycle.cycle_id,
+      });
+      setMembers(data ?? []);
+    } catch (err) {
+      console.error('Failed to load team summary:', err);
+      setMembers([]);
+    }
 
-    const ids = directReports.map((r: User) => r.user_id);
-    const { data: allGoals } = await supabase.from('goals').select('*').in('owner_id', ids).eq('cycle_id', cycle.cycle_id);
-    const goals = (allGoals ?? []) as Goal[];
-
-    const summaries: ReportSummary[] = directReports.map((emp: User) => {
-      const empGoals = goals.filter((g) => g.owner_id === emp.user_id);
-      return {
-        employee: emp as User,
-        goalCount: empGoals.length,
-        totalWeightage: empGoals.reduce((s, g) => s + g.weightage, 0),
-        sheetStatus: deriveStatus(empGoals),
-      };
-    });
-
-    setReports(summaries);
     setLoading(false);
+    setRefreshing(false);
   }, [user, activeCycle, fetchActiveCycle]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const totalReports = reports.length;
-  const submitted = reports.filter((r) => r.sheetStatus === 'submitted').length;
-  const locked = reports.filter((r) => r.sheetStatus === 'locked' || r.sheetStatus === 'approved').length;
-  const draft = reports.filter((r) => r.sheetStatus === 'draft' || r.sheetStatus === 'empty').length;
+  const totalReports = members.length;
+  const submitted = members.filter((r) => r.sheet_status === 'submitted').length;
+  const locked = members.filter((r) => r.sheet_status === 'locked' || r.sheet_status === 'approved').length;
+  const draft = members.filter((r) => r.sheet_status === 'draft' || r.sheet_status === 'empty').length;
 
   if (loading) {
     return (
@@ -85,9 +80,19 @@ export default function ManagerTeamDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-white"><Users className="h-6 w-6 text-[#fdb913]" />My Team</h1>
-        <p className="mt-1 text-sm text-neutral-400">{activeCycle ? `${activeCycle.cycle_name} · ${activeCycle.phase.replace('_', ' ')}` : 'No active cycle'}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-white"><Users className="h-6 w-6 text-[#fdb913]" />My Team</h1>
+          <p className="mt-1 text-sm text-neutral-400">{activeCycle ? `${activeCycle.cycle_name} · ${activeCycle.phase.replace('_', ' ')}` : 'No active cycle'}</p>
+        </div>
+        <button
+          onClick={() => loadData(true)}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 rounded-lg border border-neutral-700 px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:border-neutral-600 hover:text-white disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}/>
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -111,7 +116,7 @@ export default function ManagerTeamDashboard() {
       </div>
 
       {/* No reports */}
-      {reports.length === 0 && (
+      {members.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-neutral-800 py-16 text-center">
           <Users className="h-12 w-12 text-neutral-700 mb-4" />
           <h2 className="text-lg font-semibold text-neutral-400">No direct reports</h2>
@@ -120,7 +125,7 @@ export default function ManagerTeamDashboard() {
       )}
 
       {/* Report list */}
-      {reports.length > 0 && (
+      {members.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900/60">
           <table className="w-full text-sm">
             <thead>
@@ -134,34 +139,37 @@ export default function ManagerTeamDashboard() {
               </tr>
             </thead>
             <tbody>
-              {reports.map((r) => {
-                const badge = statusBadge[r.sheetStatus];
+              {members.map((r) => {
+                const badge = statusBadge[r.sheet_status];
                 return (
-                  <tr key={r.employee.user_id} className="border-b border-neutral-800/50 hover:bg-neutral-800/20">
+                  <tr key={r.user_id} className="border-b border-neutral-800/50 hover:bg-neutral-800/20">
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-xs font-bold text-neutral-300">
-                          {r.employee.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                          {r.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
-                        <span className="font-medium text-white">{r.employee.name}</span>
+                        <span className="font-medium text-white">{r.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-neutral-400">{r.employee.department}</td>
-                    <td className="px-4 py-3 text-neutral-300">{r.goalCount}</td>
+                    <td className="px-4 py-3 text-neutral-400">{r.department}</td>
+                    <td className="px-4 py-3 text-neutral-300">{r.goal_count}</td>
                     <td className="px-4 py-3">
-                      <span className={r.totalWeightage === 100 ? 'text-emerald-400' : 'text-neutral-400'}>{r.totalWeightage}%</span>
+                      <span className={r.total_weightage === 100 ? 'text-emerald-400' : 'text-neutral-400'}>{r.total_weightage}%</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      {r.sheetStatus === 'submitted' ? (
+                    <td className="px-4 py-3 flex items-center gap-2">
+                      <button onClick={() => setSelectedTimelineUserId(r.user_id)} className="flex items-center gap-1 rounded-lg border border-neutral-700 bg-neutral-800/50 px-2 py-1.5 text-[10px] uppercase font-bold text-neutral-300 hover:bg-neutral-700 transition-colors">
+                        <History className="h-3 w-3" /> Timeline
+                      </button>
+                      {r.sheet_status === 'submitted' ? (
                         <button onClick={() => navigate('/manager/approvals')} className="flex items-center gap-1 rounded-lg bg-[#fdb913]/10 px-3 py-1.5 text-xs font-medium text-[#fdb913] hover:bg-[#fdb913]/20">
                           <Eye className="h-3.5 w-3.5" />Review
                         </button>
-                      ) : r.sheetStatus === 'draft' || r.sheetStatus === 'empty' ? (
+                      ) : r.sheet_status === 'draft' || r.sheet_status === 'empty' ? (
                         <span className="flex items-center gap-1 text-xs text-neutral-600"><Clock className="h-3.5 w-3.5" />Waiting</span>
-                      ) : r.sheetStatus === 'returned' ? (
+                      ) : r.sheet_status === 'returned' ? (
                         <span className="flex items-center gap-1 text-xs text-orange-500"><AlertTriangle className="h-3.5 w-3.5" />Returned</span>
                       ) : (
                         <span className="flex items-center gap-1 text-xs text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" />Done</span>
@@ -172,6 +180,23 @@ export default function ManagerTeamDashboard() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedTimelineUserId && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setSelectedTimelineUserId(null)} />
+          <div className="relative w-full max-w-md bg-[#05060a] shadow-2xl border-l border-neutral-800 h-full flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="flex items-center justify-between p-5 border-b border-neutral-800 bg-neutral-900/50">
+              <h3 className="font-bold text-white flex items-center gap-2"><History className="h-5 w-5 text-[#fdb913]" /> Employee Timeline</h3>
+              <button onClick={() => setSelectedTimelineUserId(null)} className="p-1.5 rounded-full bg-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-700 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-neutral-900/20 to-transparent">
+              <WorkflowTimeline userId={selectedTimelineUserId} cycleId={activeCycle?.cycle_id!} />
+            </div>
+          </div>
         </div>
       )}
     </div>

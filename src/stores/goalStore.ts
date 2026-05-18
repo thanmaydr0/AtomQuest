@@ -3,6 +3,18 @@ import { supabase } from '@/lib/supabase';
 import type { Goal, GoalCycle } from '@/types';
 import toast from 'react-hot-toast';
 
+type GoalEvent = 'goal_saved' | 'goal_submitted';
+
+async function notifyGoalEvent(event: GoalEvent, payload: Record<string, unknown>) {
+  try {
+    await supabase.functions.invoke('notify-goal-event', {
+      body: { event, ...payload },
+    });
+  } catch (error) {
+    console.warn(`[goalStore] notify-goal-event failed for ${event}:`, error);
+  }
+}
+
 interface GoalStore {
   goals: Goal[];
   activeCycle: GoalCycle | null;
@@ -93,6 +105,17 @@ export const useGoalStore = create<GoalStore>((set, get) => ({
         g.goal_id === goalId ? { ...g, ...updates } : g
       ),
     });
+
+    const updatedGoal = get().goals.find((g) => g.goal_id === goalId);
+    if (updatedGoal) {
+      await notifyGoalEvent('goal_saved', {
+        goalId,
+        ownerId: updatedGoal.owner_id,
+        cycleId: updatedGoal.cycle_id,
+        linkPath: '/manager/approvals',
+      });
+    }
+
     toast.success('Goal updated');
   },
 
@@ -127,6 +150,8 @@ export const useGoalStore = create<GoalStore>((set, get) => ({
       return;
     }
 
+    const affectedGoals = get().goals.filter((g) => g.status === 'draft' || g.status === 'returned');
+
     // Refresh goals to reflect new status
     set({
       submitting: false,
@@ -136,6 +161,14 @@ export const useGoalStore = create<GoalStore>((set, get) => ({
           : g
       ),
     });
+
+    await notifyGoalEvent('goal_submitted', {
+      ownerId: userId,
+      cycleId,
+      goalId: affectedGoals[0]?.goal_id,
+      linkPath: '/manager/approvals',
+    });
+
     toast.success('Goal sheet submitted for approval!');
   },
 }));

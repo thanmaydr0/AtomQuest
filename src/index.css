@@ -13,7 +13,8 @@ body {
   margin: 0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
     Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  background: #ffffff;
+  min-height: 100vh;
+  background: #05060a;
   color: #0b0b0f;
 }
 
@@ -100,5 +101,6 @@ body {
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
 }

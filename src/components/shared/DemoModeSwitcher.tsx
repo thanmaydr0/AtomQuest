@@ -23,10 +23,8 @@ export function DemoModeSwitcher() {
   async function switchTo(account: typeof DEMO_ACCOUNTS[number]) {
     setSwitching(true);
     try {
-      // Sign out current session
       await supabase.auth.signOut();
 
-      // Sign in as the new role
       const { error } = await supabase.auth.signInWithPassword({
         email: account.email,
         password: account.password,
@@ -38,7 +36,6 @@ export function DemoModeSwitcher() {
         return;
       }
 
-      // Wait for auth store to update
       await new Promise((r) => setTimeout(r, 300));
       await useAuthStore.getState().initialize();
 
@@ -53,16 +50,14 @@ export function DemoModeSwitcher() {
 
   return (
     <>
-      {/* Floating trigger button */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-5 right-5 z-[9999] flex items-center gap-2 rounded-full bg-[#fdb913] px-4 py-2.5 text-sm font-bold text-black shadow-lg shadow-[#fdb913]/25 hover:bg-[#e5a710] transition-all hover:scale-105"
+        className="fixed bottom-5 right-5 z-[9999] flex items-center gap-2 rounded-full bg-[#fdb913] px-4 py-2.5 text-sm font-bold text-black shadow-lg shadow-[#fdb913]/25 transition-all hover:scale-105 hover:bg-[#e5a710]"
       >
         <Shuffle className="h-4 w-4" />
-        Demo: {currentRole ?? '…'}
+        Demo: {currentRole ?? '...'}
       </button>
 
-      {/* Role switcher panel */}
       {open && (
         <div className="fixed bottom-16 right-5 z-[9999] w-64 rounded-2xl border border-neutral-800 bg-neutral-900/95 p-4 shadow-2xl backdrop-blur-lg">
           <div className="mb-3 flex items-center justify-between">
@@ -77,10 +72,10 @@ export function DemoModeSwitcher() {
                 key={acc.label}
                 onClick={() => switchTo(acc)}
                 disabled={switching || currentRole === acc.label.toLowerCase()}
-                className={`w-full rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-all ${
+                className={`w-full rounded-xl border border-transparent px-4 py-2.5 text-left text-sm font-medium transition-all ${
                   currentRole === acc.label.toLowerCase()
-                    ? 'bg-[#fdb913]/15 text-[#fdb913] border border-[#fdb913]/30 cursor-default'
-                    : 'text-neutral-300 hover:bg-neutral-800 border border-transparent'
+                    ? 'cursor-default border-[#fdb913]/30 bg-[#fdb913]/15 text-[#fdb913]'
+                    : 'text-neutral-300 hover:border-neutral-700 hover:bg-neutral-800'
                 } disabled:opacity-50`}
               >
                 <div className="font-semibold">{acc.label}</div>
@@ -89,7 +84,7 @@ export function DemoModeSwitcher() {
             ))}
           </div>
           {switching && (
-            <div className="mt-3 text-center text-xs text-neutral-500">Switching…</div>
+            <div className="mt-3 text-center text-xs text-neutral-500">Switching...</div>
           )}
         </div>
       )}

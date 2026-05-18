@@ -1,0 +1,22 @@
+ 1. One-click Judge Mode
+      - A guided replay that walks through Employee -> Manager -> Admin in 60 to 90 seconds.
+      - Preloads a dramatic dataset and auto-navigates the exact story judges should see.
+      - This is the single highest ROI hackathon addition because it removes demo risk.
+  2. Event-driven workflow engine
+      - Turn goal submission, approval, return, check-in, escalation, and audit into one event stream.
+      - Show a live timeline per employee and per cycle.
+      - This makes the app feel like a real system, not separate screens stitched together.
+  3. Predictive risk scoring
+      - Add a "risk of delay" and "approval risk" model for goals and check-ins.
+      - Flag likely escalations before they happen.
+      - This is the kind of AI that feels useful instead of decorative.
+  4. What-if simulator
+      - Let a manager or admin change a goal weight, target, or cycle phase and see impact instantly.
+      - Show predicted completion, score, and escalation outcome before saving.
+      - This is the most "mind bending" feature you can add without becoming gimmicky.
+  5. Real-time org graph
+      - A live role-aware graph of employees, managers, goal links, and escalations.
+      - Click a node and see history, check-ins, approvals, and risk.
+      - This would visually differentiate you from every normal CRUD portal.
+
+

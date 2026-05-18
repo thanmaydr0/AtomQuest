@@ -13,15 +13,11 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Vendor: React core + router + state management
-          vendor: ['react', 'react-dom', 'react-router-dom', 'zustand'],
-          // Supabase client
-          supabase: ['@supabase/supabase-js'],
-          // Charts (heavy, lazy-loadable)
-          charts: ['recharts'],
-          // Form handling
-          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+        manualChunks(id: string) {
+          if (id.includes('react-dom') || id.includes('react-router-dom') || id.includes('zustand')) return 'vendor';
+          if (id.includes('@supabase/supabase-js')) return 'supabase';
+          if (id.includes('recharts')) return 'charts';
+          if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) return 'forms';
         },
       },
     },
