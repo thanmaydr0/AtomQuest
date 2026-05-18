@@ -128,8 +128,6 @@ export const useGoalStore = create<GoalStore>((set, get) => ({
         return;
       }
 
-      const affectedGoals = get().goals.filter((g) => g.status === 'draft' || g.status === 'returned');
-
       // Refresh goals to reflect new status
       set({
         submitting: false,

@@ -37,7 +37,6 @@ export function JellySqueeze({
   const dragTriggerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [followMouse, setFollowMouse] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState(0);
 
   // Animation refs to persist across renders
   const animState = useRef({
@@ -73,7 +72,6 @@ export function JellySqueeze({
         
         img.onload = () => {
           loaded++;
-          setImagesLoaded(prev => prev + 1);
           if (loaded === totalFrames) {
             setIsLoading(false);
           }
@@ -81,7 +79,6 @@ export function JellySqueeze({
         img.onerror = () => {
           // Handle error or skip
           loaded++; 
-          setImagesLoaded(prev => prev + 1);
           if (loaded === totalFrames) setIsLoading(false);
         };
         

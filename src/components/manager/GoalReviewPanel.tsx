@@ -111,7 +111,7 @@ export function GoalReviewPanel({
 
     try {
       // Use server-side RPC that validates manager-report relationship (V-04)
-      const { data, error } = await supabase.rpc('approve_goal_sheet', {
+      const { error } = await supabase.rpc('approve_goal_sheet', {
         p_manager_id: (await supabase.auth.getUser()).data.user?.id,
         p_employee_id: employeeId,
         p_cycle_id: cycleId,
@@ -143,7 +143,7 @@ export function GoalReviewPanel({
 
     try {
       // Use server-side RPC that validates manager-report relationship (V-04)
-      const { data, error } = await supabase.rpc('return_goal_sheet', {
+      const { error } = await supabase.rpc('return_goal_sheet', {
         p_manager_id: (await supabase.auth.getUser()).data.user?.id,
         p_employee_id: employeeId,
         p_cycle_id: cycleId,
